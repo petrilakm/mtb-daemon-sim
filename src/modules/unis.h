@@ -1,5 +1,5 @@
-#ifndef MODULE_MTB_UNIS_H
-#define MODULE_MTB_UNIS_H
+#ifndef _MODULE_MTB_UNIS_H_
+#define _MODULE_MTB_UNIS_H_
 
 #include "module.h"
 #include "server.h"
@@ -19,6 +19,7 @@ struct MtbUnisConfig {
 	std::array<uint8_t, UNIS_SERVO_OUT_CNT> servoPosition = {0, };
 	std::array<uint8_t, UNIS_SERVO_CNT> servoSpeed = {0, };
 
+	MtbUnisConfig() {} // default config
 	MtbUnisConfig(const QJsonObject& json) { this->fromJson(json); }
 //	MtbUnisConfig(const std::vector<uint8_t>& mtbUsbData) { this->fromMtbUsb(mtbUsbData); }
 

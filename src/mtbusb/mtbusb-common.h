@@ -1,5 +1,5 @@
-#ifndef MTBUSB_COMMON_H
-#define MTBUSB_COMMON_H
+#ifndef _MTBUSB_COMMON_H_
+#define _MTBUSB_COMMON_H_
 
 #include <stdexcept>
 #include <QString>
@@ -83,7 +83,7 @@ enum class CmdError {
 	SerialPortClosed = 0x10,
 	UsbNoResponse = 0x11,
 	BusNoResponse = 0x12,
-	HistoryConflict = 0x13,
+	PendingConflict = 0x13,
 };
 
 QString cmdErrorToStr(CmdError);
@@ -99,6 +99,7 @@ enum DVCommon { // not class-enum by design
 	MtbBusReceived = 16,
 	MtbBusBadCrc = 17,
 	MtbBusSent = 18,
+	MtbBusNotSent = 19,
 };
 
 const QMap<uint8_t, QString> dvsCommon {
@@ -112,6 +113,7 @@ const QMap<uint8_t, QString> dvsCommon {
 	{DVCommon::MtbBusReceived, "mtbbus_received"},
 	{DVCommon::MtbBusBadCrc, "mtbbus_bad_crc"},
 	{DVCommon::MtbBusSent, "mtbbus_sent"},
+	{DVCommon::MtbBusNotSent, "mtbbus_not_sent"},
 };
 
 QString DVCommonToStr(uint8_t dv); // also accepts DV dv

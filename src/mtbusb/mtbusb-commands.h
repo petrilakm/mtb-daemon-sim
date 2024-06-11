@@ -1,5 +1,5 @@
-#ifndef MTBUSB_COMMANDS
-#define MTBUSB_COMMANDS
+#ifndef _MTBUSB_COMMANDS_
+#define _MTBUSB_COMMANDS_
 
 /*
 This file defines MTB-USB & MTBbus commands.
@@ -84,6 +84,7 @@ using ErrCallbackFunc = std::function<void(CmdError, void *data)>;
 using DataCallbackFunc = std::function<void(uint8_t addr, const std::vector<uint8_t>&, void *data)>;
 using DVCallbackFunc = std::function<void(uint8_t addr, uint8_t dvi, const std::vector<uint8_t>&, void *data)>;
 
+// Callback function and any pointer
 template <typename F>
 struct CommandCallback {
 	F const func;
@@ -94,6 +95,9 @@ struct CommandCallback {
 };
 
 struct Cmd {
+	// Only 'error' callback has same type for all commands -> defined here
+	// 'ok' callback is defined in inherited commands, because it's different for diffent commands
+	// e.g. response to 'beacon' is just 'ok', but response to 'get module info' is the module info
 	const CommandCallback<ErrCallbackFunc> onError;
 
 	Cmd(const CommandCallback<ErrCallbackFunc>& onError = {[](CmdError, void*){}}) : onError(onError) {}
@@ -105,6 +109,7 @@ struct Cmd {
     //	return false;
     //}
 		// returns true iff response processed
+
 	virtual void callError(CmdError error) const {
 		if (nullptr != onError.func)
 			onError.func(error, onError.data);
@@ -119,7 +124,7 @@ bool is(const Cmd &x) {
 /* MTB-USB commands ----------------------------------------------------------*/
 
 struct CmdMtbUsbInfoRequest : public Cmd {
-	const CommandCallback<StdCallbackFunc> onOk; // no special callback here, data could be read from MtbUsb class directly
+	const CommandCallback<StdCallbackFunc> onOk; // no special callback here, response is present in MtbUsb::m_mtbUsbInfo
 
 	CmdMtbUsbInfoRequest(const CommandCallback<StdCallbackFunc> &onOk = {[](void*){}},
 	                     const CommandCallback<ErrCallbackFunc> &onError = {[](CmdError, void*){}})
@@ -217,6 +222,8 @@ struct CmdMtbUsbPing : public Cmd {
 };
 
 /* MTBbus commands -----------------------------------------------------------*/
+// MTBbus command = command for MTBbus module (not for MTB-USB)
+// Every MTBbus command inherits from CmdMtbUsbForward
 
 struct ModuleInfo {
 	uint8_t type = 0;

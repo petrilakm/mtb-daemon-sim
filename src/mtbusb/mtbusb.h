@@ -1,5 +1,5 @@
-#ifndef MTBUSB_H
-#define MTBUSB_H
+#ifndef _MTBUSB_H_
+#define _MTBUSB_H_
 
 /* Low-level access to MTB-USB module via CDC serial port. */
 
@@ -17,12 +17,11 @@
 namespace Mtb {
 
 constexpr size_t _MAX_MODULES = 256;
-constexpr size_t _MAX_HISTORY_LEN = 32;
-constexpr size_t _HIST_CHECK_INTERVAL = 100; // ms
-constexpr size_t _HIST_TIMEOUT = 300; // ms
-constexpr size_t _HIST_SEND_MAX = 3;
+constexpr size_t _PENDING_CHECK_INTERVAL = 100; // ms
+constexpr size_t _PENDING_TIMEOUT = 300; // ms
+constexpr size_t _PENDING_RESEND_MAX = 3;
 constexpr size_t _BUF_IN_TIMEOUT = 50; // ms
-constexpr size_t _MAX_HIST_BUF_COUNT = 3;
+constexpr size_t _MAX_PENDING = 3; // maximum number of commands waiting for response
 constexpr size_t _PING_SEND_PERIOD_MS = 5000;
 
 struct EOpenError : public MtbUsbError {
@@ -61,25 +60,27 @@ QString dataToStr(DataT data, size_t len = 0) {
 	return out.trimmed();
 }
 
-struct HistoryItem {
-	HistoryItem(std::unique_ptr<const Cmd> &cmd, QDateTime timeout, size_t no_sent)
+// PendingCmd represents a command sent to the MTB-USB, for which the response
+// has not arrived yet.
+struct PendingCmd {
+	PendingCmd(std::unique_ptr<const Cmd> &cmd, QDateTime timeout, size_t no_sent)
 	    : cmd(std::move(cmd))
 	    , timeout(timeout)
 		, no_sent(no_sent) {}
-	HistoryItem(HistoryItem &&hist) noexcept
-	    : cmd(std::move(hist.cmd))
-	    , timeout(hist.timeout)
-		, no_sent(hist.no_sent) {}
-	HistoryItem& operator=(HistoryItem &&hist) {
-		cmd = std::move(hist.cmd);
-		timeout = hist.timeout;
-		no_sent = hist.no_sent;
+	PendingCmd(PendingCmd &&pending) noexcept
+	    : cmd(std::move(pending.cmd))
+	    , timeout(pending.timeout)
+		, no_sent(pending.no_sent) {}
+	PendingCmd& operator=(PendingCmd &&pending) {
+		cmd = std::move(pending.cmd);
+		timeout = pending.timeout;
+		no_sent = pending.no_sent;
 		return *this;
 	}
 
 	std::unique_ptr<const Cmd> cmd;
-	QDateTime timeout;
-	size_t no_sent = 0;
+	QDateTime timeout; // timeout for response
+	size_t no_sent = 0; // how many times this command was resent (for calculating of giving-up)
 };
 
 struct MtbUsbInfo {
@@ -95,7 +96,6 @@ struct MtbUsbInfo {
 	uint16_t fw_raw() const { return (fw_major << 8) | fw_minor; }
 	bool fw_deprecated() const { return (fw_raw() < 0x0103); }
 };
-
 
 // Templated functions must be in header file to compile
 

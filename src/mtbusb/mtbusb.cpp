@@ -40,10 +40,8 @@ void MtbUsb::pingTimerTick() {
 /* Public functions API ------------------------------------------------------*/
 
 void MtbUsb::connect(const QString &portname, int32_t br, QSerialPort::FlowControl fc) {
-	log("Connecting to " + portname + ", br=" + QString::number(br) +
-	    ", fc=" + flowControlToStr(fc) + "...", LogLevel::Info);
-
-	log("Connected", LogLevel::Info);
+	log("Connecting to [simulation] ...", LogLevel::Info);
+	log("Connected (simulation)", LogLevel::Info);
 	emit onConnect();
 }
 

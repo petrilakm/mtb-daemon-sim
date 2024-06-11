@@ -6,31 +6,31 @@ void MtbUsb::histTimerTick() {
 
 }
 
-void MtbUsb::histResend() {
-	HistoryItem hist = std::move(m_hist.front());
-	m_hist.pop_front();
+void MtbUsb::pendingResend() {
+	PendingCmd pending = std::move(m_pending.front());
+	m_pending.pop_front();
 
-	// to_send guarantees us that conflict can never occur in hist buffer
+	// to_send guarantees us that conflict can never occur in pending buffer
 	// we just check conflict in out buffer
 
-	if (this->conflictWithOut(*(hist.cmd))) {
-		log("Not sending again, conflict: " + hist.cmd->msg(), LogLevel::Warning);
-		hist.cmd->callError(CmdError::HistoryConflict);
+	if (this->conflictWithOut(*(pending.cmd))) {
+		log("Not sending again, conflict: " + pending.cmd->msg(), LogLevel::Warning);
+		pending.cmd->callError(CmdError::PendingConflict);
 		if (!m_out.empty())
 			this->sendNextOut();
 		return;
 	}
 
-	log("Sending again: " + hist.cmd->msg(), LogLevel::Warning);
+	log("Sending again: " + pending.cmd->msg(), LogLevel::Warning);
 
 	try {
-		this->write(std::move(hist.cmd), hist.no_sent+1);
+		this->write(std::move(pending.cmd), pending.no_sent+1);
 	} catch (...) {}
 }
 
-bool MtbUsb::conflictWithHistory(const Cmd &cmd) const {
-	for (const HistoryItem &hist : m_hist)
-		if (hist.cmd->conflict(cmd) || cmd.conflict(*(hist.cmd)))
+bool MtbUsb::conflictWithPending(const Cmd &cmd) const {
+	for (const PendingCmd &pending : m_pending)
+		if (pending.cmd->conflict(cmd) || cmd.conflict(*(pending.cmd)))
 			return true;
 	return false;
 }

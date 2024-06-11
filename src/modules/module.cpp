@@ -14,275 +14,277 @@ bool MtbModule::isBeacon() const { return this->beacon; }
 bool MtbModule::isActivating() const { return this->activating; }
 
 QJsonObject MtbModule::moduleInfo(bool, bool) const {
-	QJsonObject obj;
-	obj["address"] = this->address;
-	obj["name"] = this->name;
-	obj["type_code"] = static_cast<int>(this->type);
-	obj["type"] = moduleTypeToStr(this->type);
+    QJsonObject obj;
+    obj["address"] = this->address;
+    obj["name"] = this->name;
+    obj["type_code"] = static_cast<int>(this->type);
+    obj["type"] = moduleTypeToStr(this->type);
 
-	if (this->active) {
-		if (this->busModuleInfo.bootloader_unint)
-			obj["state"] = "bootloader_err";
-		else if (this->busModuleInfo.bootloader_int)
-			obj["state"] = "bootloader_int";
-		else if (this->isFirmwareUpgrading())
-			obj["state"] = "fw_upgrading";
-		else
-			obj["state"] = "active";
+    if (this->active) {
+        if (this->busModuleInfo.bootloader_unint)
+            obj["state"] = "bootloader_err";
+        else if (this->busModuleInfo.bootloader_int)
+            obj["state"] = "bootloader_int";
+        else if (this->isFirmwareUpgrading())
+            obj["state"] = "fw_upgrading";
+        else
+            obj["state"] = "active";
 
-		obj["firmware_version"] = this->busModuleInfo.fw_version();
-		obj["protocol_version"] = this->busModuleInfo.proto_version();
-		obj["bootloader_version"] = this->busModuleInfo.bootloader_version();
-		obj["error"] = (this->busModuleInfo.error);
-		obj["warning"] = (this->busModuleInfo.warning);
-		obj["beacon"] = this->beacon;
-		obj["fw_deprecated"] = this->fwDeprecated();
-	} else {
-		obj["state"] = (this->isRebooting()) ? "rebooting" : "inactive";
-	}
+        obj["firmware_version"] = this->busModuleInfo.fw_version();
+        obj["protocol_version"] = this->busModuleInfo.proto_version();
+        obj["bootloader_version"] = this->busModuleInfo.bootloader_version();
+        obj["error"] = (this->busModuleInfo.error);
+        obj["warning"] = (this->busModuleInfo.warning);
+        obj["beacon"] = this->beacon;
+        obj["fw_deprecated"] = this->fwDeprecated();
+    } else {
+        obj["state"] = (this->isRebooting()) ? "rebooting" : "inactive";
+    }
 
-	return obj;
+    return obj;
 }
 
 void MtbModule::mtbBusActivate(Mtb::ModuleInfo moduleInfo) {
-	this->activationsRemaining = MTB_MODULE_ACTIVATIONS;
-	this->busModuleInfo = moduleInfo;
-	this->rebooting.activatedByMtbUsb = true;
-	this->type = static_cast<MtbModuleType>(moduleInfo.type);
+    this->activationsRemaining = MTB_MODULE_ACTIVATIONS;
+    this->busModuleInfo = moduleInfo;
+    this->rebooting.activatedByMtbUsb = true;
+    this->type = static_cast<MtbModuleType>(moduleInfo.type);
 
-	if (this->fwDeprecated()) {
-		this->mlog("FW of the module is deprecated: "+this->busModuleInfo.fw_version()+", upgrade the firmware!",
-		           Mtb::LogLevel::Warning);
-	}
+    if (this->fwDeprecated()) {
+        this->mlog("FW of the module is deprecated: "+this->busModuleInfo.fw_version()+", upgrade the firmware!",
+                   Mtb::LogLevel::Warning);
+    }
 }
 
 void MtbModule::mtbBusLost() {
-	this->mlog("Lost", Mtb::LogLevel::Info);
-	this->activating = false;
-	this->active = false;
-	this->activationsRemaining = 0;
-	this->sendModuleInfo();
+    this->mlog("Lost", Mtb::LogLevel::Info);
+    this->activating = false;
+    this->active = false;
+    this->activationsRemaining = 0;
+    this->sendModuleInfo();
 }
 
 void MtbModule::mtbUsbDisconnected() {
-	this->active = false;
+    this->active = false;
 }
 
 void MtbModule::mtbBusInputsChanged(const std::vector<uint8_t>&) {
 }
 
 void MtbModule::mtbBusDiagStateChanged(const std::vector<uint8_t>& data) {
-	if (data.size() < 1)
-		return;
-	this->mtbBusDiagStateChanged(data[0] & 1, data[0] & 2);
+    if (data.size() < 1)
+        return;
+    this->mtbBusDiagStateChanged(data[0] & 1, data[0] & 2);
 }
 
 void MtbModule::mtbBusDiagStateChanged(bool isError, bool isWarning) {
-	bool changed = false;
+    bool changed = false;
 
-	{
-		changed |= (isError != this->busModuleInfo.error);
-		this->busModuleInfo.error = isError;
-	}
+    {
+        changed |= (isError != this->busModuleInfo.error);
+        this->busModuleInfo.error = isError;
+    }
 
-	{
-		changed |= (isWarning != this->busModuleInfo.warning);
-		this->busModuleInfo.warning = isWarning;
-	}
+    {
+        changed |= (isWarning != this->busModuleInfo.warning);
+        this->busModuleInfo.warning = isWarning;
+    }
 
-	if (changed) {
-		this->sendModuleInfo();
-		this->mlog("Module diag state changed: warning="+QString::number(this->busModuleInfo.warning)+", error="+
-		           QString::number(this->busModuleInfo.error), Mtb::LogLevel::Warning);
-	}
+    if (changed) {
+        this->sendModuleInfo();
+        this->mlog("Module diag state changed: warning="+QString::number(this->busModuleInfo.warning)+", error="+
+                   QString::number(this->busModuleInfo.error), Mtb::LogLevel::Warning);
+    }
 }
 
 void MtbModule::jsonCommand(QTcpSocket *socket, const QJsonObject &request, bool hasWriteAccess) {
-	QString command = request["command"].toString();
+    QString command = QJsonSafe::safeString(request, "command");
 
-	// Commands for clients with read-only access
-	if (command == "module_diag")
-		return this->jsonGetDiag(socket, request);
+    // Commands for clients with read-only access
+    if (command == "module_diag")
+        return this->jsonGetDiag(socket, request);
 
-	if (!hasWriteAccess)
-		return sendAccessDenied(socket, request);
+    if (!hasWriteAccess)
+        return sendAccessDenied(socket, request);
 
-	// Commands for clients with write access
-	if (command == "module_set_outputs")
-		return this->jsonSetOutput(socket, request);
-	if (command == "module_set_config")
-		return this->jsonSetConfig(socket, request);
-	if (command == "module_upgrade_fw")
-		return this->jsonUpgradeFw(socket, request);
-	if (command == "module_reboot")
-		return this->jsonReboot(socket, request);
-	if (command == "module_specific_command")
-		return this->jsonSpecificCommand(socket, request);
-	if (command == "module_beacon")
-		return this->jsonBeacon(socket, request);
-	if (command == "module_set_address")
-		return this->jsonSetAddress(socket, request);
+    // Commands for clients with write access
+    if (command == "module_set_outputs")
+        return this->jsonSetOutput(socket, request);
+    if (command == "module_set_config")
+        return this->jsonSetConfig(socket, request);
+    if (command == "module_upgrade_fw")
+        return this->jsonUpgradeFw(socket, request);
+    if (command == "module_reboot")
+        return this->jsonReboot(socket, request);
+    if (command == "module_specific_command")
+        return this->jsonSpecificCommand(socket, request);
+    if (command == "module_beacon")
+        return this->jsonBeacon(socket, request);
+    if (command == "module_set_address")
+        return this->jsonSetAddress(socket, request);
 
-	// Explicitly answer "unknown command"
-	sendError(socket, request, MTB_UNKNOWN_COMMAND, "Unknown command!");
+    // Explicitly answer "unknown command"
+    sendError(socket, request, MTB_UNKNOWN_COMMAND, "Unknown command!");
 }
 
 void MtbModule::jsonSetOutput(QTcpSocket *socket, const QJsonObject &request) {
-	sendError(socket, request, MTB_MODULE_UNSUPPORTED_COMMAND, "This module does not support output setting!");
+    sendError(socket, request, MTB_MODULE_UNSUPPORTED_COMMAND, "This module does not support output setting!");
 }
 
 void MtbModule::jsonSetConfig(QTcpSocket*, const QJsonObject &json) {
-	if (json.contains("type_code"))
-		this->type = static_cast<MtbModuleType>(json["type_code"].toInt());
-	if (json.contains("name"))
-		this->name = json["name"].toString();
+    if (json.contains("type_code"))
+        this->type = static_cast<MtbModuleType>(QJsonSafe::safeUInt(json, "type_code"));
+    if (json.contains("name"))
+        this->name = QJsonSafe::safeString(json, "name");
 }
 
 void MtbModule::jsonSetAddress(QTcpSocket *socket, const QJsonObject &request) {
-	if (this->isFirmwareUpgrading()) {
-		sendError(socket, request, MTB_MODULE_UPGRADING_FW, "Firmware of module is being upgraded!");
-		return;
-	}
-	if (this->busModuleInfo.inBootloader()) {
-		sendError(socket, request, MTB_MODULE_IN_BOOTLOADER, "Module is in bootloader!");
-		return;
-	}
-	if (this->isConfigSetting()) {
-		sendError(socket, request, MTB_MODULE_CONFIG_SETTING, "Configuration of module is being changed!");
-		return;
-	}
+    if (this->isFirmwareUpgrading()) {
+        sendError(socket, request, MTB_MODULE_UPGRADING_FW, "Firmware of module is being upgraded!");
+        return;
+    }
+    if (this->busModuleInfo.inBootloader()) {
+        sendError(socket, request, MTB_MODULE_IN_BOOTLOADER, "Module is in bootloader!");
+        return;
+    }
+    if (this->isConfigSetting()) {
+        sendError(socket, request, MTB_MODULE_CONFIG_SETTING, "Configuration of module is being changed!");
+        return;
+    }
 
-    //uint8_t newaddr = request["new_address"].toInt(1);
+    uint8_t newaddr = QJsonSafe::safeUInt(request, "new_address");
+    QJsonObject response = jsonOkResponse(request);
+    server.send(socket, response);
 }
 
 void MtbModule::jsonUpgradeFw(QTcpSocket *socket, const QJsonObject &request) {
-	sendError(socket, request, MTB_MODULE_UNSUPPORTED_COMMAND, "This module does not support firmware upgrading!");
+    sendError(socket, request, MTB_MODULE_UNSUPPORTED_COMMAND, "This module does not support firmware upgrading!");
 }
 
 void MtbModule::jsonReboot(QTcpSocket *socket, const QJsonObject &request) {
-	if (this->isRebooting())
-		return sendError(socket, request, MTB_MODULE_REBOOTING, "Already rebooting!");
+    if (this->isRebooting())
+        return sendError(socket, request, MTB_MODULE_REBOOTING, "Already rebooting!");
 
-	this->reboot(
-		{[this, socket, request]() {
-			this->mlog("Module successfully rebooted", Mtb::LogLevel::Info);
-			QJsonObject response{
-				{"command", "module_reboot"},
-				{"type", "response"},
-				{"status", "ok"},
-				{"address", this->address},
-			};
-			if (request.contains("id"))
-				response["id"] = request["id"];
-			server.send(socket, response);
-		}},
-		{[this, socket, request]() {
-			sendError(socket, request, MTB_BUS_NO_RESPONSE,
-			          "Unable to reboot module");
-			this->mtbBusLost();
-		}}
-	);
+    this->reboot(
+        {[this, socket, request]() {
+            this->mlog("Module successfully rebooted", Mtb::LogLevel::Info);
+            QJsonObject response{
+                {"command", "module_reboot"},
+                {"type", "response"},
+                {"status", "ok"},
+                {"address", this->address},
+            };
+            if (request.contains("id"))
+                response["id"] = request["id"];
+            server.send(socket, response);
+        }},
+        {[this, socket, request]() {
+            sendError(socket, request, MTB_BUS_NO_RESPONSE,
+                      "Unable to reboot module");
+            this->mtbBusLost();
+        }}
+    );
 }
 
 QString moduleTypeToStr(MtbModuleType type) {
-	switch (type) {
-	case MtbModuleType::Univ2ir: return "MTB-UNI v2 IR";
-	case MtbModuleType::Univ2noIr: return "MTB-UNI v2";
-	case MtbModuleType::Univ40: return "MTB-UNI v4";
-	case MtbModuleType::Univ42: return "MTB-UNI v4";
-	case MtbModuleType::Unis10: return "MTB-UNIS";
-	case MtbModuleType::Rc: return "MTB-RC";
-	default: return "Unknown type";
-	}
+    switch (type) {
+    case MtbModuleType::Univ2ir: return "MTB-UNI v2 IR";
+    case MtbModuleType::Univ2noIr: return "MTB-UNI v2";
+    case MtbModuleType::Univ40: return "MTB-UNI v4";
+    case MtbModuleType::Univ42: return "MTB-UNI v4";
+    case MtbModuleType::Unis10: return "MTB-UNIS";
+    case MtbModuleType::Rc: return "MTB-RC";
+    default: return "Unknown type";
+    }
 }
 
 void MtbModule::sendInputsChanged(QJsonObject inputs) const {
-	QJsonObject json{
-		{"command", "module_inputs_changed"},
-		{"type", "event"},
-		{"module_inputs_changed", QJsonObject{
-			{"address", this->address},
-			{"type", moduleTypeToStr(this->type)},
-			{"type_code", static_cast<int>(this->type)},
-			{"inputs", inputs},
-		}}
-	};
+    QJsonObject json{
+        {"command", "module_inputs_changed"},
+        {"type", "event"},
+        {"module_inputs_changed", QJsonObject{
+            {"address", this->address},
+            {"type", moduleTypeToStr(this->type)},
+            {"type_code", static_cast<int>(this->type)},
+            {"inputs", inputs},
+        }}
+    };
 
-	for (auto socket : subscribes[this->address])
-		server.send(socket, json);
+    for (auto socket : subscribes[this->address])
+        server.send(socket, json);
 
 }
 
 void MtbModule::sendOutputsChanged(QJsonObject outputs, const std::vector<QTcpSocket*>& ignore) const {
-	QJsonObject json{
-		{"command", "module_outputs_changed"},
-		{"type", "event"},
-		{"module_outputs_changed", QJsonObject{
-			{"address", this->address},
-			{"type", moduleTypeToStr(this->type)},
-			{"type_code", static_cast<int>(this->type)},
-			{"outputs", outputs},
-		}}
-	};
+    QJsonObject json{
+        {"command", "module_outputs_changed"},
+        {"type", "event"},
+        {"module_outputs_changed", QJsonObject{
+            {"address", this->address},
+            {"type", moduleTypeToStr(this->type)},
+            {"type_code", static_cast<int>(this->type)},
+            {"outputs", outputs},
+        }}
+    };
 
-	for (auto socket : subscribes[this->address])
-		if (std::find(ignore.begin(), ignore.end(), socket) == ignore.end())
-			server.send(socket, json);
+    for (auto socket : subscribes[this->address])
+        if (std::find(ignore.begin(), ignore.end(), socket) == ignore.end())
+            server.send(socket, json);
 }
 
 void MtbModule::loadConfig(const QJsonObject &json) {
-	this->name = json["name"].toString();
-	this->type = static_cast<MtbModuleType>(json["type"].toInt());
+    this->name = QJsonSafe::safeString(json, "name");
+    this->type = static_cast<MtbModuleType>(QJsonSafe::safeUInt(json, "type"));
     this->active = true;
 }
 
 void MtbModule::saveConfig(QJsonObject &json) const {
-	json["name"] = this->name;
-	json["type"] = static_cast<int>(this->type);
+    json["name"] = this->name;
+    json["type"] = static_cast<int>(this->type);
 }
 
 void MtbModule::sendModuleInfo(QTcpSocket *ignore, bool sendConfig) const {
-	QJsonObject json{
-		{"command", "module"},
-		{"type", "event"},
-		{"module", this->moduleInfo(true, sendConfig)},
-	};
+    QJsonObject json{
+        {"command", "module"},
+        {"type", "event"},
+        {"module", this->moduleInfo(true, sendConfig)},
+    };
 
-	// For simplicity, send module's 'state' to all clients, altrough clients with topology-only
-	// subscription probably don't need the state.
-	std::unordered_set<QTcpSocket*> sockets(topoSubscribes);
-	sockets.insert(subscribes[this->address].begin(), subscribes[this->address].end());
-	for (auto socket : sockets)
-		if (socket != ignore)
-			server.send(socket, json);
+    // For simplicity, send module's 'state' to all clients, altrough clients with topology-only
+    // subscription probably don't need the state.
+    std::unordered_set<QTcpSocket*> sockets(topoSubscribes);
+    sockets.insert(subscribes[this->address].begin(), subscribes[this->address].end());
+    for (auto socket : sockets)
+        if (socket != ignore)
+            server.send(socket, json);
 }
 
 void MtbModule::resetOutputsOfClient(QTcpSocket*) {}
 
 void MtbModule::clientDisconnected(QTcpSocket *socket) {
-	if ((this->configWriting.has_value()) && (this->configWriting.value().socket == socket))
-		this->configWriting->socket = nullptr;
-	if ((this->fwUpgrade.fwUpgrading.has_value()) && (this->fwUpgrade.fwUpgrading.value().socket == socket))
-		this->fwUpgrade.fwUpgrading->socket = nullptr;
+    if ((this->configWriting.has_value()) && (this->configWriting.value().socket == socket))
+        this->configWriting->socket = nullptr;
+    if ((this->fwUpgrade.fwUpgrading.has_value()) && (this->fwUpgrade.fwUpgrading.value().socket == socket))
+        this->fwUpgrade.fwUpgrading->socket = nullptr;
 }
 
 std::vector<QTcpSocket*> MtbModule::outputSetters() const {
-	return {};
+    return {};
 }
 
 bool MtbModule::isConfigSetting() const { return this->configWriting.has_value(); }
 
 void MtbModule::jsonGetDiag(QTcpSocket *socket, const QJsonObject &request) {
-	uint8_t dv_num = 0;
+    uint8_t dv_num = 0;
     (void) dv_num;
-	if (request.contains("DVnum")) {
-		dv_num = request["DVnum"].toInt();
-	} else {
-		std::optional<uint8_t> dv = this->StrToDV(request["DVkey"].toString());
-		if (!dv)
-			return sendError(socket, request, MTB_INVALID_DV, "Unknown DV!");
-		dv_num = dv.value();
-	}
+    if (request.contains("DVnum")) {
+        dv_num = QJsonSafe::safeUInt(request, "DVnum");
+    } else {
+        std::optional<uint8_t> dv = this->StrToDV(request["DVkey"].toString());
+        if (!dv)
+            return sendError(socket, request, MTB_INVALID_DV, "Unknown DV!");
+        dv_num = dv.value();
+    }
 
 
 }
@@ -290,156 +292,160 @@ void MtbModule::jsonGetDiag(QTcpSocket *socket, const QJsonObject &request) {
 /* Firmware Upgrade ----------------------------------------------------------*/
 
 std::map<size_t, std::vector<uint8_t>> MtbModule::parseFirmware(const QJsonObject &json) {
-	std::map<size_t, std::vector<uint8_t>> result;
+    std::map<size_t, std::vector<uint8_t>> result;
 
-	for (const QString &key : json.keys()) {
-		size_t addr = key.toInt();
-		const QString &dataStr = json[key].toString();
-		std::vector<uint8_t> data;
-		for (int i = 0; i < dataStr.size(); i += 2)
-			data.push_back(dataStr.mid(i, 2).toInt(nullptr, 16));
+    for (const QString &key : json.keys()) {
+        size_t addr = key.toInt();
+        const QString &dataStr = QJsonSafe::safeString(json[key]);
+        std::vector<uint8_t> data;
+        for (int i = 0; i < dataStr.size(); i += 2)
+            data.push_back(dataStr.mid(i, 2).toInt(nullptr, 16));
 
-		for (size_t i = 0; i < data.size(); i++) {
-			size_t block = (addr+i) / MtbModule::FwUpgrade::BLOCK_SIZE;
-			size_t offset = (addr+i) % MtbModule::FwUpgrade::BLOCK_SIZE;
-			if (result.find(block) == result.end())
-				result.emplace(block, std::vector<uint8_t>(MtbModule::FwUpgrade::BLOCK_SIZE, 0xFF));
+        for (size_t i = 0; i < data.size(); i++) {
+            size_t block = (addr+i) / MtbModule::FwUpgrade::BLOCK_SIZE;
+            size_t offset = (addr+i) % MtbModule::FwUpgrade::BLOCK_SIZE;
+            if (result.find(block) == result.end())
+                result.emplace(block, std::vector<uint8_t>(MtbModule::FwUpgrade::BLOCK_SIZE, 0xFF));
 
-			result[block][offset] = data[i];
-		}
-	}
+            result[block][offset] = data[i];
+        }
+    }
 
-	return result;
+    return result;
 }
 
 bool MtbModule::isFirmwareUpgrading() const { return this->fwUpgrade.fwUpgrading.has_value(); }
 
 void MtbModule::fwUpgdInit() {
-	this->mlog("Initializing firmware upgrade", Mtb::LogLevel::Info);
-	this->sendModuleInfo(this->fwUpgrade.fwUpgrading.value().socket);
+    this->mlog("Initializing firmware upgrade", Mtb::LogLevel::Info);
+    this->sendModuleInfo(this->fwUpgrade.fwUpgrading.value().socket);
 
-	if (this->busModuleInfo.inBootloader()) {
-		// Skip rebooting to bootloader
-		this->mlog("Module already in bootloader, skipping reboot", Mtb::LogLevel::Info);
-		this->fwUpgdGotInfo(this->busModuleInfo);
-		return;
-	}
+    if (this->busModuleInfo.inBootloader()) {
+        // Skip rebooting to bootloader
+        this->mlog("Module already in bootloader, skipping reboot", Mtb::LogLevel::Info);
+        this->fwUpgdGotInfo(this->busModuleInfo);
+        return;
+    }
 
-	// Reboot to bootloader
+    // Reboot to bootloader
 
 }
 
 void MtbModule::fwUpgdReqAck() {
-	// Wait for module to reboot & initialize communication
-	// Check if module is in bootloader
+    // Wait for module to reboot & initialize communication
+    // Check if module is in bootloader
 }
 
 void MtbModule::fwUpgdGotInfo(Mtb::ModuleInfo info) {
-	this->busModuleInfo = info;
-	if (!this->busModuleInfo.inBootloader())
-		return this->fwUpgdError("Module rebooted, but not in bootloader!");
+    this->busModuleInfo = info;
+    if (!this->busModuleInfo.inBootloader())
+        return this->fwUpgdError("Module rebooted, but not in bootloader!");
 
-	this->fwUpgrade.toWrite = this->fwUpgrade.data.begin();
-	this->fwUpgdGetStatus();
+    this->fwUpgrade.toWrite = this->fwUpgrade.data.begin();
+    this->fwUpgdGetStatus();
 }
 
 void MtbModule::fwUpgdGetStatus() {
 }
 
 void MtbModule::fwUpgdGotStatus(Mtb::FwWriteFlashStatus status) {
-	if (status == Mtb::FwWriteFlashStatus::WritingFlash) {
-		this->fwUpgdGetStatus();
-		return;
-	}
+    if (status == Mtb::FwWriteFlashStatus::WritingFlash) {
+        this->fwUpgdGetStatus();
+        return;
+    }
 
-	if (this->fwUpgrade.toWrite == this->fwUpgrade.data.end())
-		return fwUpgdAllWritten();
+    if (this->fwUpgrade.toWrite == this->fwUpgrade.data.end())
+        return fwUpgdAllWritten();
 
     //uint16_t fwAddr = (*this->fwUpgrade.toWrite).first * MtbModule::FwUpgrade::BLOCK_SIZE;
     //const std::vector<uint8_t> &fwBlob = (*this->fwUpgrade.toWrite).second;
 
-	++(this->fwUpgrade.toWrite);
+    ++(this->fwUpgrade.toWrite);
 }
 
 void MtbModule::fwUpgdError(const QString &error, size_t code) {
-	QJsonObject json{
-		{"command", "module_upgrade_fw"},
-		{"type", "response"},
-		{"status", "error"},
-		{"error", jsonError(code, error)},
-	};
-	const ServerRequest request = this->fwUpgrade.fwUpgrading.value();
-	if (request.id.has_value())
-		json["id"] = static_cast<int>(request.id.value());
-	server.send(request.socket, json);
+    QJsonObject json{
+        {"command", "module_upgrade_fw"},
+        {"type", "response"},
+        {"status", "error"},
+        {"error", jsonError(code, error)},
+    };
+    const ServerRequest request = this->fwUpgrade.fwUpgrading.value();
+    if (request.id.has_value())
+        json["id"] = static_cast<int>(request.id.value());
+    server.send(request.socket, json);
 
-	this->fwUpgrade.fwUpgrading.reset();
-	this->fwUpgrade.data.clear();
-	this->sendModuleInfo(request.socket);
+    this->fwUpgrade.fwUpgrading.reset();
+    this->fwUpgrade.data.clear();
+    this->sendModuleInfo(request.socket);
 }
 
 void MtbModule::fwUpgdAllWritten() {
-	this->mlog("Firmware programming finished, rebooting module...", Mtb::LogLevel::Info);
+    this->mlog("Firmware programming finished, rebooting module...", Mtb::LogLevel::Info);
 
-	this->reboot(
-		{[this]() { this->fwUpgdRebooted(); }},
-		{[this]() { this->fwUpgdError("Unable to reboot module back to operation!"); }}
-	);
+    this->reboot(
+        {[this]() { this->fwUpgdRebooted(); }},
+        {[this]() { this->fwUpgdError("Unable to reboot module back to operation!"); }}
+    );
 }
 
 void MtbModule::fwUpgdRebooted() {
-	if (this->busModuleInfo.inBootloader())
-		return this->fwUpgdError("Module rebooted after upgrade, but it stayed in bootloader!");
+    if (this->busModuleInfo.inBootloader())
+        return this->fwUpgdError("Module rebooted after upgrade, but it stayed in bootloader!");
 
-	this->mlog("Firmware successfully upgraded", Mtb::LogLevel::Info);
+    this->mlog("Firmware successfully upgraded", Mtb::LogLevel::Info);
 
-	QJsonObject json{
-		{"command", "module_upgrade_fw"},
-		{"type", "response"},
-		{"status", "ok"},
-		{"address", this->address},
-	};
-	const ServerRequest request = this->fwUpgrade.fwUpgrading.value();
-	if (request.id.has_value())
-		json["id"] = static_cast<int>(request.id.value());
-	server.send(request.socket, json);
+    QJsonObject json{
+        {"command", "module_upgrade_fw"},
+        {"type", "response"},
+        {"status", "ok"},
+        {"address", this->address},
+    };
+    const ServerRequest request = this->fwUpgrade.fwUpgrading.value();
+    if (request.id.has_value())
+        json["id"] = static_cast<int>(request.id.value());
+    server.send(request.socket, json);
 
-	this->fwUpgrade.fwUpgrading.reset();
-	this->fwUpgrade.data.clear();
-	this->sendModuleInfo(request.socket, true);
+    this->fwUpgrade.fwUpgrading.reset();
+    this->fwUpgrade.data.clear();
+    this->sendModuleInfo(request.socket, true);
 }
 
 void MtbModule::reboot(std::function<void()> onOk, std::function<void()> onError) {
-	if (this->isRebooting())
-		return;
+    if (this->isRebooting())
+        return;
 
-	this->rebooting.rebooting = true;
-	this->rebooting.onOk = onOk;
-	this->rebooting.onError = onError;
-	this->rebooting.activatedByMtbUsb = false;
-	this->mtbBusLost();
+    this->rebooting.rebooting = true;
+    this->rebooting.onOk = onOk;
+    this->rebooting.onError = onError;
+    this->rebooting.activatedByMtbUsb = false;
+    this->mtbBusLost();
 
-	this->sendModuleInfo(nullptr, true);
+    this->sendModuleInfo(nullptr, true);
 }
 
 void MtbModule::fullyActivated() {
-	this->activating = false;
-	this->activationsRemaining = 0;
-	this->active = true;
-	this->mlog("Activated", Mtb::LogLevel::Info);
-	this->sendModuleInfo(nullptr, true);
+    this->activating = false;
+    this->activationsRemaining = 0;
+    this->active = true;
+    this->mlog("Activated", Mtb::LogLevel::Info);
+    this->sendModuleInfo(nullptr, true);
 
-	if (this->isRebooting()) {
-		this->rebooting.rebooting = false;
-		this->rebooting.onOk();
-	}
+    if (this->isRebooting()) {
+        this->rebooting.rebooting = false;
+        this->rebooting.onOk();
+    }
 }
 
 void MtbModule::jsonSpecificCommand(QTcpSocket *socket, const QJsonObject &request) {
-	const QJsonArray &dataAr = request["data"].toArray();
-	std::vector<uint8_t> data;
-	for (const auto var : dataAr)
-		data.push_back(var.toInt());
+    const QJsonArray dataAr = QJsonSafe::safeArray(request, "data");
+    std::vector<uint8_t> data;
+    for (const auto var : dataAr) {
+        unsigned int value = QJsonSafe::safeUInt(var);
+        if (value > 0xFF)
+            throw JsonParseError("Each item of 'data' must be <= 0xFF");
+        data.push_back(value);
+    }
 
 
     QJsonObject json = jsonOkResponse(request);
@@ -455,7 +461,7 @@ void MtbModule::jsonSpecificCommand(QTcpSocket *socket, const QJsonObject &reque
 }
 
 void MtbModule::jsonBeacon(QTcpSocket *socket, const QJsonObject &request) {
-	bool beacon = request["beacon"].toBool();
+    bool beacon = QJsonSafe::safeBool(request, "beacon");
     this->beacon = beacon;
     QJsonObject response = jsonOkResponse(request);
     response["beacon"] = beacon;
@@ -467,21 +473,55 @@ void MtbModule::allOutputsReset() {}
 void MtbModule::reactivateCheck() {}
 
 void MtbModule::activationError(Mtb::CmdError) {
-	this->activating = false;
-	if (this->activationsRemaining > 0) {
-		this->activationsRemaining--;
-		if (this->activationsRemaining <= 0)
-			this->mlog("Out of attempts for activation!", Mtb::LogLevel::Error);
-	}
+    this->activating = false;
+    if (this->activationsRemaining > 0) {
+        this->activationsRemaining--;
+        if (this->activationsRemaining <= 0)
+            this->mlog("Out of attempts for activation!", Mtb::LogLevel::Error);
+    }
 }
 
 void MtbModule::mlog(const QString& message, Mtb::LogLevel loglevel) const {
-	log("Module "+QString::number(this->address)+": "+message, loglevel);
+    log("Module "+QString::number(this->address)+": "+message, loglevel);
 }
 
 QJsonObject MtbModule::dvRepr(uint8_t dvi, const std::vector<uint8_t> &data) const {
-    (void) dvi;
-    (void) data;
+    if (data.size() < 1)
+        return {};
+
+    switch (dvi) {
+        case Mtb::DVCommon::Version:
+            return {{"version", QString::number((data[0] >> 4) & 0x0F) + "." + QString::number(data[0] & 0x0F)}};
+
+        case Mtb::DVCommon::State:
+            return {
+                {"warnings", static_cast<bool>(data[0] & 2)},
+                {"errors", static_cast<bool>(data[0] & 1)},
+            };
+
+        case Mtb::DVCommon::Uptime:
+            if (data.size() == 4)
+                return {{"uptime_seconds", static_cast<int>(pack<uint32_t>(data))}};
+            break;
+
+        case Mtb::DVCommon::Warnings:
+            return {
+                {"extrf", static_cast<bool>(data[0] & 0x1)},
+                {"borf", static_cast<bool>(data[0] & 0x2)},
+                {"wdrf", static_cast<bool>(data[0] & 0x4)},
+                {"timer_miss", static_cast<bool>(data[0] & 0x10)},
+                {"vcc_oscilating", static_cast<bool>(data[0] & 0x20)},
+            };
+
+        case Mtb::DVCommon::MtbBusReceived:
+        case Mtb::DVCommon::MtbBusBadCrc:
+        case Mtb::DVCommon::MtbBusSent:
+        case Mtb::DVCommon::MtbBusNotSent:
+            if (data.size() == 4)
+                return {{Mtb::DVCommonToStr(dvi), static_cast<qint64>(pack<uint32_t>(data))}};
+            break;
+    }
+
     return {};
 }
 
@@ -496,5 +536,5 @@ std::optional<uint8_t> MtbModule::StrToDV(const QString &str) const {
 }
 
 bool MtbModule::fwDeprecated() const {
-	return false;
+    return false;
 }

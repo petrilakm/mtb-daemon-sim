@@ -9,6 +9,7 @@ SOURCES += \
 	src/main.cpp \
 	src/server.cpp \
 	src/logging.cpp \
+	src/qjsonsafe.cpp \
 	src/modules/module.cpp \
 	src/modules/unis.cpp \
   src/simwin.cpp
@@ -19,6 +20,7 @@ HEADERS += \
 	src/mtbusb/mtbusb.h \
 	src/server.h \
 	src/logging.h \
+	src/qjsonsafe.h \
 	src/modules/module.h \
 	src/modules/unis.h \
 	src/errors.h \
