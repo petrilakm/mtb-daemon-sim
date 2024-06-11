@@ -100,7 +100,7 @@ QJsonObject jsonError(size_t code, const QString &msg) {
 }
 
 QJsonObject jsonError(Mtb::CmdError error) {
-	return jsonError(static_cast<int>(error)+0x1000, Mtb::cmdErrorToStr(error));
+    return jsonError(static_cast<int>(error)+0x1000, "unknown error");
 }
 
 void sendError(QTcpSocket *socket, const QJsonObject &request, const QJsonObject &error) {

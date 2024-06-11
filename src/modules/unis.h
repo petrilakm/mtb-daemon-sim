@@ -20,7 +20,7 @@ struct MtbUnisConfig {
 	std::array<uint8_t, UNIS_SERVO_CNT> servoSpeed = {0, };
 
 	MtbUnisConfig(const QJsonObject& json) { this->fromJson(json); }
-	MtbUnisConfig(const std::vector<uint8_t>& mtbUsbData) { this->fromMtbUsb(mtbUsbData); }
+//	MtbUnisConfig(const std::vector<uint8_t>& mtbUsbData) { this->fromMtbUsb(mtbUsbData); }
 
 	std::vector<uint8_t> serializeForMtbUsb() const;
 	void fromMtbUsb(const std::vector<uint8_t>&);
@@ -40,8 +40,9 @@ struct MtbUnisConfig {
 };
 
 class MtbUnis : public MtbModule {
+    Q_OBJECT
 protected:
-	uint16_t inputs;
+
 	std::array<uint8_t, UNIS_OUT_CNT> outputsWant;
 	std::array<uint8_t, UNIS_OUT_CNT> outputsConfirmed;
 	std::optional<MtbUnisConfig> config;
@@ -87,6 +88,7 @@ public:
 	~MtbUnis() override = default;
 	QJsonObject moduleInfo(bool state, bool config) const override;
 
+    uint16_t inputs;
 	void mtbBusActivate(Mtb::ModuleInfo) override;
 	void mtbBusInputsChanged(const std::vector<uint8_t>&) override;
 	void mtbUsbDisconnected() override;
@@ -102,6 +104,10 @@ public:
 	void reactivateCheck() override;
 
 	static uint8_t jsonOutputToByte(const QJsonObject&);
+
+signals:
+    void simOutputChanged(int addr, int pin, bool state);
+
 };
 
 #endif

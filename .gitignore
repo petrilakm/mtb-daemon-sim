@@ -37,6 +37,6 @@
 # build directory
 build*
 
-*.pro.user
+*.pro.user*
 
 compile_commands.json

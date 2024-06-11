@@ -7,6 +7,11 @@
 
 MtbUnis::MtbUnis(uint8_t addr) : MtbModule(addr) {
 	std::fill(this->whoSetOutput.begin(), this->whoSetOutput.end(), nullptr);
+    inputs = 0;
+    for(int i = 0; i < UNIS_OUT_CNT; i++) {
+        outputsWant[i] = 0;
+        outputsConfirmed[i] = 0;
+    }
 }
 
 /* JSON Module Info --------------------------------------------------------- */
@@ -74,6 +79,8 @@ void MtbUnis::jsonSetOutput(QTcpSocket *socket, const QJsonObject &request) {
 			if ((this->whoSetOutput[port] != nullptr) && (this->whoSetOutput[port] != socket))
 				this->mlog("Multiple clients set same output: "+QString::number(port), Mtb::LogLevel::Warning);
 			this->whoSetOutput[port] = socket;
+            // show on sim panel
+            emit simOutputChanged(address, port, !(code == 0));
 		}
 		this->outputsWant[port] = code;
 	}
@@ -115,6 +122,9 @@ void MtbUnis::setOutputs() {
 	this->setOutputsSent = this->setOutputsWaiting;
 	this->setOutputsWaiting.clear();
 
+    auto data = this->mtbBusOutputsData();
+    this->mtbBusOutputsSet(data);
+    /*
 	mtbusb.send(
 		Mtb::CmdMtbModuleSetOutput(
 			this->address, this->mtbBusOutputsData(),
@@ -124,10 +134,12 @@ void MtbUnis::setOutputs() {
 			{[this](Mtb::CmdError error, void*) { this->mtbBusOutputsNotSet(error); }}
 		)
 	);
+    */
 }
 
 void MtbUnis::mtbBusOutputsSet(const std::vector<uint8_t>& data) {
-	this->outputsConfirmed = this->moduleOutputsData(data);
+    (void) data;
+    this->outputsConfirmed = outputsWant;
 
 	// TODO: check if output really set?
 
@@ -247,6 +259,8 @@ void MtbUnis::jsonSetConfig(QTcpSocket *socket, const QJsonObject &request) {
 	this->configWriting = ServerRequest(socket, request);
 
 	if ((this->active) && (oldConfig != this->configToWrite)) {
+        this->mtbBusConfigWritten();
+        /*
 		mtbusb.send(
 			Mtb::CmdMtbModuleSetConfig(
 				this->address, this->configToWrite.value().serializeForMtbUsb(),
@@ -254,6 +268,7 @@ void MtbUnis::jsonSetConfig(QTcpSocket *socket, const QJsonObject &request) {
 				{[this](Mtb::CmdError error, void*) { this->mtbBusConfigNotWritten(error); }}
 			)
 		);
+        */
 	} else {
 		this->mtbBusConfigWritten();
 	}
@@ -458,42 +473,19 @@ void MtbUnis::mtbBusActivate(Mtb::ModuleInfo info) {
 void MtbUnis::activate() {
 	this->activating = true;
 
-	if (this->busModuleInfo.warning || this->busModuleInfo.error)
-		this->mlog("Module warning="+QString::number(this->busModuleInfo.warning)+", error="+
-		           QString::number(this->busModuleInfo.error), Mtb::LogLevel::Warning);
-
 	if (this->config.has_value()) {
 		this->mlog("Config previously loaded from file, setting to module...", Mtb::LogLevel::Info);
-		mtbusb.send(
-			Mtb::CmdMtbModuleSetConfig(
-				this->address, this->config.value().serializeForMtbUsb(),
-				{[this](uint8_t, void*) { this->configSet(); }},
-				{[this](Mtb::CmdError error, void*) {
-					this->mlog("Unable to set module config.", Mtb::LogLevel::Error);
-					this->activationError(error);
-				}}
-			)
-		);
+        this->configSet();
 	} else {
 		this->mlog("Config of this module not loaded from file, getting config from module...", Mtb::LogLevel::Info);
-		mtbusb.send(
-			Mtb::CmdMtbModuleGetConfig(
-				this->address,
-				{[this](uint8_t, const std::vector<uint8_t>& data, void*) {
-					this->config.emplace(MtbUnisConfig(data));
-					this->configSet();
-				}},
-				{[this](Mtb::CmdError error, void*) {
-					this->mlog("Unable to get module config.", Mtb::LogLevel::Error);
-					this->activationError(error);
-				}}
-			)
-		);
-	}
+    }
 }
 
 void MtbUnis::configSet() {
 	// Mtb module activation: got info & config set → read inputs
+    const std::vector<uint8_t> data = {0x0,0x00,0x00,0x00,0x00,0x00};
+    this->inputsRead(data);
+    /*
 	mtbusb.send(
 		Mtb::CmdMtbModuleGetInputs(
 			this->address,
@@ -504,22 +496,12 @@ void MtbUnis::configSet() {
 			}}
 		)
 	);
+    */
 }
 
 void MtbUnis::inputsRead(const std::vector<uint8_t> &data) {
 	// Mtb module activation: got info & config set & inputs read → mark module as active
 	this->storeInputsState(data);
-
-	mtbusb.send(
-		Mtb::CmdMtbModuleResetOutputs(
-			this->address,
-			{[this](uint8_t, void*) { this->outputsReset(); }},
-			{[this](Mtb::CmdError error, void*) {
-				this->mlog("Unable to reset new module outputs.", Mtb::LogLevel::Error);
-				this->activationError(error);
-			}}
-		)
-	);
 }
 
 void MtbUnis::storeInputsState(const std::vector<uint8_t> &data) {
@@ -543,7 +525,12 @@ void MtbUnis::outputsReset() {
 
 void MtbUnis::mtbBusInputsChanged(const std::vector<uint8_t> &data) {
 	if (this->active || this->activating) {
-		this->storeInputsState(data);
+        if (data[1] > 0) {
+            this->inputs |=  (1 << data[0]);
+        } else {
+            this->inputs &= ~(1 << data[0]);
+        }
+        //this->storeInputsState(data);
 		this->sendInputsChanged(inputsToJson(this->inputs));
 	}
 }
@@ -708,39 +695,5 @@ void MtbUnis::saveConfig(QJsonObject &json) const {
 /* Diagnostic Values -------------------------------------------------------- */
 
 QJsonObject MtbUnis::dvRepr(uint8_t dvi, const std::vector<uint8_t> &data) const {
-	switch (dvi) {
-		case Mtb::DVCommon::MCUVoltage: {
-			if (data.size() < 2)
-				return {};
-
-			uint16_t raw = (data[1] << 8) | data[0];
-			float value = (UNIS_ADC_BG * 1024) / raw;
-			float value_min = (UNIS_ADC_BG*0.9 * 1024) / raw;
-			float value_max = (UNIS_ADC_BG*1.1 * 1024) / raw;
-			return {
-				{"mcu_voltage", value},
-				{"mcu_voltage_min", value_min},
-				{"mcu_voltage_max", value_max},
-				{"mcu_voltage_raw", raw},
-			};
-		}
-
-		case Mtb::DVCommon::MCUTemperature: {
-			if (data.size() < 4)
-				return {};
-
-			uint16_t raw = (data[0] << 8) | data[1];
-			int8_t ts_offset = data[2];
-			uint8_t ts_gain = data[3];
-			float temp = ((raw-(273+100-ts_offset))*128 / ts_gain) + 25;
-			return {
-				{"mcu_temp_celsius", temp},
-				{"mcu_temp_raw", raw},
-				{"mcu_ts_offset", ts_offset},
-				{"mcu_ts_gain", ts_gain},
-			};
-		}
-	}
-
 	return MtbModule::dvRepr(dvi, data);
 }

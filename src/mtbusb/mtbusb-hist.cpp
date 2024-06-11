@@ -3,21 +3,7 @@
 namespace Mtb {
 
 void MtbUsb::histTimerTick() {
-	if (!m_serialPort.isOpen()) {
-		for (const auto &hist : m_hist)
-			hist.cmd->callError(CmdError::SerialPortClosed);
-		m_hist.clear();
-	}
 
-	if (m_hist.empty())
-		return;
-
-	if (m_hist.front().timeout < QDateTime::currentDateTime()) {
-		if (m_hist.front().no_sent >= _HIST_SEND_MAX)
-			histTimeoutError(CmdError::UsbNoResponse);
-		else
-			histResend();
-	}
 }
 
 void MtbUsb::histResend() {

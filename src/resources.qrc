@@ -1,0 +1,22 @@
+<RCC>
+    <qresource prefix="/bmp">
+        <file alias="tb0z">../BMP/tlacitko_b_0_0.bmp</file>
+        <file alias="tb0m">../BMP/tlacitko_b_0_1.bmp</file>
+        <file alias="tb0v">../BMP/tlacitko_b_0_2.bmp</file>
+        <file alias="tb1z">../BMP/tlacitko_b_4_0.bmp</file>
+        <file alias="tb1m">../BMP/tlacitko_b_4_1.bmp</file>
+        <file alias="tb1v">../BMP/tlacitko_b_4_2.bmp</file>
+        <file alias="tz0z">../BMP/tlacitko_z_0_0.bmp</file>
+        <file alias="tz0m">../BMP/tlacitko_z_0_1.bmp</file>
+        <file alias="tz0v">../BMP/tlacitko_z_0_2.bmp</file>
+        <file alias="tz1z">../BMP/tlacitko_z_4_0.bmp</file>
+        <file alias="tz1m">../BMP/tlacitko_z_4_1.bmp</file>
+        <file alias="tz1v">../BMP/tlacitko_z_4_2.bmp</file>
+        <file alias="tnz">../BMP/tlacitko_n_0.bmp</file>
+        <file alias="tnm">../BMP/tlacitko_n_1.bmp</file>
+        <file alias="tnv">../BMP/tlacitko_n_2.bmp</file>
+        <file alias="u0">../BMP/u_0.png</file>
+        <file alias="u1">../BMP/u_1.png</file>
+        <file alias="u2">../BMP/u_2.png</file>
+    </qresource>
+</RCC>

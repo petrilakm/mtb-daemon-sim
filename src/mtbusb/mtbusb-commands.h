@@ -8,9 +8,75 @@ See mtbusb.h or README for more documentation.
 */
 
 #include <functional>
-#include "mtbusb-common.h"
+//#include "mtbusb-common.h"
+#include <stdexcept>
+#include <QString>
+#include <QMap>
+#include <optional>
 
 namespace Mtb {
+
+enum class CmdError {
+    UnknownCommand = 0x01,
+    UnsupportedCommand = 0x02,
+    BadAddress = 0x03,
+    SerialPortClosed = 0x10,
+    UsbNoResponse = 0x11,
+    BusNoResponse = 0x12,
+    HistoryConflict = 0x13,
+};
+
+enum class MtbUsbRecvError {
+    NoResponse = 0x01,
+    FullBuffer = 0x02,
+};
+
+enum class MtbBusRecvError {
+    UnknownCommand = 0x01,
+    UnsupportedCommand = 0x02,
+    BadAddress = 0x03,
+};
+
+
+enum class MtbUsbRecvCommand {
+    Ack = 0x01,
+    Error = 0x02,
+    MtbBusForward = 0x10,
+    MtbUsbInfo = 0x20,
+    ActiveModules = 0x22,
+    NewModule = 0x23,
+    ModuleFailed = 0x24,
+};
+
+enum class MtbBusRecvCommand {
+    Acknowledgement = 0x01,
+    Error = 0x02,
+    ModuleInfo = 0x03,
+    ModuleConfig = 0x04,
+    InputChanged = 0x10,
+    InputState = 0x11,
+    OutputSet = 0x12,
+    DiagValue = 0xD0,
+    FWWriteFlashStatus = 0xF2,
+    ModuleSpecific = 0xFE,
+};
+
+struct MtbUsbError : public std::logic_error {
+    MtbUsbError(const std::string &str) : std::logic_error(str) {}
+    MtbUsbError(const QString &str) : logic_error(str.toStdString()) {}
+};
+
+struct EInvalidSpeed : public MtbUsbError {
+    EInvalidSpeed() : MtbUsbError(std::string("Invalid MTBbus speed!")) {}
+    EInvalidSpeed(const std::string &str) : MtbUsbError(str) {}
+};
+
+enum class MtbBusSpeed {
+    br38400 = 1,
+    br57600 = 2,
+    br115200 = 3,
+    br230400 = 4, // only from MTB-USB FW v1.3
+};
 
 using StdCallbackFunc = std::function<void(void *data)>;
 using StdModuleCallbackFunc = std::function<void(uint8_t addr, void *data)>;
@@ -35,9 +101,9 @@ struct Cmd {
 	virtual QString msg() const = 0;
 	virtual ~Cmd() = default;
 	virtual bool conflict(const Cmd &) const { return false; }
-	virtual bool processUsbResponse(MtbUsbRecvCommand, const std::vector<uint8_t>&) const {
-		return false;
-	}
+    //virtual bool processUsbResponse(MtbUsbRecvCommand, const std::vector<uint8_t>&) const {
+    //	return false;
+    //}
 		// returns true iff response processed
 	virtual void callError(CmdError error) const {
 		if (nullptr != onError.func)
@@ -62,7 +128,7 @@ struct CmdMtbUsbInfoRequest : public Cmd {
 	std::vector<uint8_t> getBytes() const override { return {0x20}; }
 	QString msg() const override { return "MTB-USB Information Request"; }
 
-	bool processUsbResponse(MtbUsbRecvCommand usbCommand, const std::vector<uint8_t>&) const override {
+    bool processUsbResponse(MtbUsbRecvCommand usbCommand, const std::vector<uint8_t>&) const {
 		if (usbCommand == MtbUsbRecvCommand::MtbUsbInfo) {
 			onOk.func(onOk.data);
 			return true;
@@ -72,28 +138,23 @@ struct CmdMtbUsbInfoRequest : public Cmd {
 };
 
 struct CmdMtbUsbChangeSpeed : public Cmd {
-	const MtbBusSpeed speed;
-	const CommandCallback<StdCallbackFunc> onOk;
+    const MtbBusSpeed speed;
+    const CommandCallback<StdCallbackFunc> onOk;
 
-	CmdMtbUsbChangeSpeed(const MtbBusSpeed speed, const CommandCallback<StdCallbackFunc> &onOk = {[](void*){}},
-	                     const CommandCallback<ErrCallbackFunc> &onError = {[](CmdError, void*){}})
-	  : Cmd(onError), speed(speed), onOk(onOk) {}
+    CmdMtbUsbChangeSpeed(const MtbBusSpeed speed, const CommandCallback<StdCallbackFunc> &onOk = {[](void*){}},
+                         const CommandCallback<ErrCallbackFunc> &onError = {[](CmdError, void*){}})
+      : Cmd(onError), speed(speed), onOk(onOk) {}
 
-	std::vector<uint8_t> getBytes() const override {
-		return {0x21, static_cast<uint8_t>(speed)};
-	}
-	QString msg() const override {
-		return "MTB-USB Change MTBbus Speed to "+QString::number(mtbBusSpeedToInt(speed))+" baud/s";
-	}
-	bool conflict(const Cmd &cmd) const override { return is<CmdMtbUsbChangeSpeed>(cmd); }
+    std::vector<uint8_t> getBytes() const override {
+        return {0x21, static_cast<uint8_t>(speed)};
+    }
 
-	bool processUsbResponse(MtbUsbRecvCommand usbCommand, const std::vector<uint8_t>&) const override {
-		if (usbCommand == MtbUsbRecvCommand::Ack) {
-			onOk.func(onOk.data);
-			return true;
-		}
-		return false;
-	}
+    bool conflict(const Cmd &cmd) const override { return is<CmdMtbUsbChangeSpeed>(cmd); }
+
+    bool processUsbResponse(MtbUsbRecvCommand usbCommand, const std::vector<uint8_t>&) const {
+        (void) usbCommand;
+        return true;
+    }
 };
 
 struct CmdMtbUsbActiveModulesRequest : public Cmd {
@@ -106,7 +167,7 @@ struct CmdMtbUsbActiveModulesRequest : public Cmd {
 	std::vector<uint8_t> getBytes() const override { return {0x22}; }
 	QString msg() const override { return "MTB-USB Active Modules Requst"; }
 
-	bool processUsbResponse(MtbUsbRecvCommand usbCommand, const std::vector<uint8_t>&) const override {
+    bool processUsbResponse(MtbUsbRecvCommand usbCommand, const std::vector<uint8_t>&) const {
 		if (usbCommand == MtbUsbRecvCommand::ActiveModules) {
 			onOk.func(onOk.data);
 			return true;
@@ -123,8 +184,7 @@ struct CmdMtbUsbForward : public Cmd {
 	CmdMtbUsbForward(uint8_t module, uint8_t busCommandCode,
 	                 const CommandCallback<ErrCallbackFunc> &onError = {[](CmdError, void*){}})
 	 : Cmd(onError), module(module), busCommandCode(busCommandCode) {
-		if (module == 0)
-			throw EInvalidAddress(module);
+
 	}
 	CmdMtbUsbForward(uint8_t busCommandCode,
 	                 const CommandCallback<ErrCallbackFunc> &onError = {[](CmdError, void*){}})
@@ -147,7 +207,7 @@ struct CmdMtbUsbPing : public Cmd {
 	std::vector<uint8_t> getBytes() const override { return {0x30}; }
 	QString msg() const override { return "MTB-USB Ping"; }
 
-	bool processUsbResponse(MtbUsbRecvCommand usbCommand, const std::vector<uint8_t>&) const override {
+    bool processUsbResponse(MtbUsbRecvCommand usbCommand, const std::vector<uint8_t>&) const  {
 		if (usbCommand == MtbUsbRecvCommand::Ack) {
 			onOk.func(onOk.data);
 			return true;
@@ -426,9 +486,7 @@ struct CmdMtbModuleChangeSpeed : public CmdMtbUsbForward {
 		return {usbCommandCode, module, _busCommandCode, static_cast<uint8_t>(speed)};
 	}
 	QString msg() const override {
-		if (this->broadcast())
-			return "All modules change speed to "+QString::number(mtbBusSpeedToInt(speed));
-		return "Module "+QString::number(module)+" change speed to "+QString::number(mtbBusSpeedToInt(speed));
+        return "no change";
 	}
 
 	bool processBusResponse(MtbBusRecvCommand busCommand, const std::vector<uint8_t>&) const override {

@@ -2,15 +2,18 @@
 #define MAIN_H
 
 #include <QCoreApplication>
+#include <QApplication>
 #include <QTcpSocket>
 #include <unordered_set>
 #include <QSet>
 #include <array>
-#include "mtbusb.h"
 #include "server.h"
 #include "module.h"
+#include "simwin.h"
 
-extern Mtb::MtbUsb mtbusb;
+//extern Mtb::MtbUsb mtbusb;
+
+
 extern DaemonServer server;
 extern std::array<std::unique_ptr<MtbModule>, Mtb::_MAX_MODULES> modules;
 extern std::array<std::unordered_set<QTcpSocket*>, Mtb::_MAX_MODULES> subscribes;
@@ -46,7 +49,7 @@ enum class StartupError {
 	ServerStart = 2,
 };
 
-class DaemonCoreApplication : public QCoreApplication {
+class DaemonCoreApplication : public QApplication {
 	Q_OBJECT
 public:
 	DaemonCoreApplication(int &argc, char **argv);
@@ -56,6 +59,7 @@ public:
 	StartupError startupError() const { return startError; }
 
 private:
+    Tsimwin *simwin;
 	QJsonObject config;
 	QString configFileName;
 	QTimer t_reconnect;
@@ -117,6 +121,10 @@ private slots:
 
 	void tReconnectTick();
 	void tReactivateTick();
+
+
+public slots:
+    void simOnInputChanged(int addr, int pin, bool state);
 };
 
 #endif

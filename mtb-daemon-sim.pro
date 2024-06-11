@@ -1,36 +1,28 @@
-TARGET = mtb-daemon
+TARGET = mtb-daemon-sim
 TEMPLATE = app
 CONFIG += console
+
 CONFIG -= app_bundle
 
 SOURCES += \
+  src/bmp_tlacitka.cpp \
 	src/main.cpp \
-	src/mtbusb/mtbusb.cpp \
-	src/mtbusb/mtbusb-send.cpp \
-	src/mtbusb/mtbusb-receive.cpp \
-	src/mtbusb/mtbusb-hist.cpp \
-	src/mtbusb/mtbusb-common.cpp \
-	src/mtbusb/mtbusb-win-com-discover.cpp \
 	src/server.cpp \
 	src/logging.cpp \
 	src/modules/module.cpp \
-	src/modules/uni.cpp \
 	src/modules/unis.cpp \
-	src/modules/rc.cpp
+  src/simwin.cpp
 
 HEADERS += \
+  src/bmp_tlacitka.h \
 	src/main.h \
-	src/mtbusb/mtbusb-win-com-discover.h \
 	src/mtbusb/mtbusb.h \
-	src/mtbusb/mtbusb-commands.h \
-	src/mtbusb/mtbusb-common.h \
 	src/server.h \
 	src/logging.h \
 	src/modules/module.h \
-	src/modules/uni.h \
 	src/modules/unis.h \
-	src/modules/rc.h \
 	src/errors.h \
+  src/simwin.h \
 	src/utils.h \
 	lib/termcolor.h
 
@@ -54,14 +46,17 @@ win64 {
 	LIBS += -lsetupapi
 }
 
-QT -= gui
-QT += core serialport network
+QT += gui
+QT += core serialport network widgets
 
 VERSION_MAJOR = 1
-VERSION_MINOR = 5
+VERSION_MINOR = 0
 
 DEFINES += "VERSION_MAJOR=$$VERSION_MAJOR" "VERSION_MINOR=$$VERSION_MINOR"
 
 #Target version
 VERSION = $${VERSION_MAJOR}.$${VERSION_MINOR}
 DEFINES += "VERSION=\\\"$${VERSION}\\\""
+
+RESOURCES += \
+  src/resources.qrc

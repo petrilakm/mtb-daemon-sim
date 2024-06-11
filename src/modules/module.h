@@ -3,6 +3,7 @@
 
 #include <QTcpSocket>
 #include <QJsonObject>
+#include <QObject>
 #include "mtbusb.h"
 #include "server.h"
 #include "errors.h"
@@ -20,7 +21,8 @@ enum class MtbModuleType {
 constexpr size_t MTB_MODULE_ACTIVATIONS = 5;
 QString moduleTypeToStr(MtbModuleType);
 
-class MtbModule {
+class MtbModule : public QObject {
+    Q_OBJECT
 protected:
 	bool active = false;
 	uint8_t address;
@@ -119,7 +121,8 @@ public:
 	virtual QString DVToStr(uint8_t dv) const;
 	virtual std::optional<uint8_t> StrToDV(const QString&) const;
 
-private:
+signals:
+    void simOutputChanged(int addr, int pin, bool state);
 
 };
 

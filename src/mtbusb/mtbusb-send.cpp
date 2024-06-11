@@ -10,12 +10,6 @@ void MtbUsb::send(std::vector<uint8_t> data) {
 	log("PUT: " + dataToStr<std::vector<uint8_t>, uint8_t>(data), LogLevel::RawData);
 	QByteArray qdata(reinterpret_cast<const char *>(data.data()), data.size());
 
-	if (!m_serialPort.isOpen())
-		throw EWriteError("Serial port not open!");
-
-	qint64 sent = m_serialPort.write(qdata);
-	if (sent == -1 || sent != qdata.size())
-		throw EWriteError("No data could we written!");
 }
 
 void MtbUsb::write(std::unique_ptr<const Cmd> cmd, size_t no_sent) {
