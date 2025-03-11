@@ -20,18 +20,37 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class Tsimwin; }
 QT_END_NAMESPACE
 
-extern std::array<std::unique_ptr<MtbModule>, Mtb::_MAX_MODULES> modules;
+extern std::array<MtbModule *, Mtb::_MAX_MODULES> modules;
 
 struct mtbConnection {
     int addr;
     int pin;
 };
 
+class TindAZD : public QLabel
+{
+    Q_OBJECT
+public:
+    enum indColor { icBila, icZelena, icOranzova, icCervena };
+    TindAZD(int _X, int _Y, enum indColor _color, QWidget *parent = nullptr);
+    struct mtbConnection mtbZarovka;
+
+private:
+    int X,Y;
+    bool state;
+    enum indColor color;
+    void updateState();
+
+public slots:
+    void lampChanged(bool _state);
+};
+
 class TprusvAZD : public QLabel
 {
     Q_OBJECT
 public:
-    TprusvAZD(int _X, int _Y, QWidget *parent = nullptr);
+    enum prusvType { ptZakladni, ptKratka, ptSikma, ptSikmaOpacna, ptKratkaSikma };
+    TprusvAZD(int _X, int _Y, enum prusvType _type, QWidget *parent = nullptr);
     enum prusvState { psZakladni, psBila, psCervena };
 
     struct mtbConnection mtbBila;
@@ -40,9 +59,14 @@ public:
 private:
     int X,Y;
     enum prusvState state;
+    enum prusvType type;
+    bool lampBila;
+    bool lampCervena;
+    void updateState();
 
 public slots:
-    void lampChanged(enum prusvState  _state);
+    void lampBilaChanged(bool _state);
+    void lampCervenaChanged(bool _state);
 };
 
 class TtlacAZD : public QPushButton
@@ -95,6 +119,7 @@ public:
     // seznamy prvků na pultu
     QList<TtlacAZD*> prvTlac; // tlačítka
     QList<TprusvAZD*> prvPrusv; // průsvitky
+    QList<TindAZD*> prvIndik; // indikátory (žárovky)
     QList<QLabel*> prvLabel; // cedulky
 
 private:

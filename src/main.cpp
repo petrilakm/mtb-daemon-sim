@@ -16,7 +16,8 @@
 #endif
 
 DaemonServer server;
-std::array<std::unique_ptr<MtbModule>, Mtb::_MAX_MODULES> modules;
+//std::array<std::unique_ptr<MtbModule>, Mtb::_MAX_MODULES> modules;
+std::array<MtbModule *, Mtb::_MAX_MODULES> modules;
 std::array<std::unordered_set<QTcpSocket*>, Mtb::_MAX_MODULES> subscribes;
 std::unordered_set<QTcpSocket*> topoSubscribes;
 
@@ -248,6 +249,39 @@ void DaemonCoreApplication::simOnInputChanged(int addr, int pin, bool state)
 
     if (modules[addr] != nullptr) {
         modules[addr]->mtbBusInputsChanged(simdata);
+    }
+}
+
+void DaemonCoreApplication::simOnOutputChanged(int addr, int pin, bool state)
+{
+    // hleda tlačítka, kam je zapojeno - funguje
+    TtlacAZD *ptlac;
+    for (int i = 0; i < simwin->prvTlac.count(); i++) {
+        ptlac = simwin->prvTlac.at(i);
+        if ((ptlac->mtbLampOut.addr == addr) && (ptlac->mtbLampOut.pin == pin)) {
+            ptlac->lampChanged(state);
+        }
+    }
+
+    // hleda průsvitky, kam je zapojeno
+    TprusvAZD *pprusv;
+    for (int i = 0; i < simwin->prvPrusv.count(); i++) {
+        pprusv = simwin->prvPrusv.at(i);
+        if ((pprusv->mtbBila.addr == addr) && (pprusv->mtbBila.pin == pin)) {
+            pprusv->lampBilaChanged(state);
+        }
+        if ((pprusv->mtbCervena.addr == addr) && (pprusv->mtbCervena.pin == pin)) {
+            pprusv->lampCervenaChanged(state);
+        }
+    }
+
+    // hleda indikátory, kam je zapojeno
+    TindAZD *pind;
+    for (int i = 0; i < simwin->prvIndik.count(); i++) {
+        pind = simwin->prvIndik.at(i);
+        if ((pind->mtbZarovka.addr == addr) && (pind->mtbZarovka.pin == pin)) {
+            pind->lampChanged(state);
+        }
     }
 }
 
@@ -713,6 +747,8 @@ void DaemonCoreApplication::loadConfig(const QString& filename) {
             if (modules[addr] == nullptr) {
                 modules[addr] = this->newModule(type, addr);
                 modules[addr]->loadConfig(module);
+                QObject *ptr;
+                connect(modules[addr], SIGNAL(simOutputChanged(int, int, bool )), this, SLOT(simOnOutputChanged(int,int,bool)));
                 //connect(modules[addr], SIGNAL(), );
             } else {
                 if (static_cast<size_t>(modules[addr]->moduleType()) == type) {
@@ -725,6 +761,7 @@ void DaemonCoreApplication::loadConfig(const QString& filename) {
                             Mtb::LogLevel::Warning);
                     }
                 }
+            }
             } catch (const JsonParseError &e) {
                 throw JsonParseError("Module "+_addr+": "+e.what());
             }
@@ -821,14 +858,14 @@ bool DaemonCoreApplication::hasWriteAccess(const QTcpSocket *socket) {
     return this->writeAccess.contains(socket->peerAddress());
 }
 
-std::unique_ptr<MtbModule> DaemonCoreApplication::newModule(size_t type, uint8_t addr) {
+MtbModule * DaemonCoreApplication::newModule(size_t type, uint8_t addr) {
     if (type == static_cast<size_t>(MtbModuleType::Unis10)) {
-        return std::make_unique<MtbUnis>(addr);
+        return new MtbUnis(addr);
     }
 
     log("Unknown module type: "+QString::number(addr)+": 0x"+
         QString::number(type, 16)+"!", Mtb::LogLevel::Warning);
-    return std::make_unique<MtbModule>(addr);
+    return new MtbModule(addr);
 }
 
 #ifdef Q_OS_WIN

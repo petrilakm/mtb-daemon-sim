@@ -14,7 +14,8 @@
 
 
 extern DaemonServer server;
-extern std::array<std::unique_ptr<MtbModule>, Mtb::_MAX_MODULES> modules;
+//extern std::array<std::unique_ptr<MtbModule>, Mtb::_MAX_MODULES> modules;
+extern std::array<MtbModule *, Mtb::_MAX_MODULES> modules;
 extern std::array<std::unordered_set<QTcpSocket*>, Mtb::_MAX_MODULES> subscribes;
 extern std::unordered_set<QTcpSocket*> topoSubscribes;
 
@@ -72,7 +73,7 @@ private:
     void activateModule(uint8_t addr, size_t attemptsRemaining = 5);
     void moduleGotInfo(uint8_t addr, Mtb::ModuleInfo);
     void moduleDidNotGetInfo();
-    static std::unique_ptr<MtbModule> newModule(size_t type, uint8_t addr);
+    static MtbModule * newModule(size_t type, uint8_t addr);
 
     void loadConfig(const QString &filename);
     void saveConfig(const QString &filename);
@@ -119,6 +120,7 @@ private slots:
 
 public slots:
     void simOnInputChanged(int addr, int pin, bool state);
+    void simOnOutputChanged(int addr, int pin, bool state);
 };
 
 #endif

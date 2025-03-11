@@ -18,5 +18,26 @@
         <file alias="u0">../BMP/u_0.png</file>
         <file alias="u1">../BMP/u_1.png</file>
         <file alias="u2">../BMP/u_2.png</file>
+        <file alias="um0">../BMP/um_0.png</file>
+        <file alias="um1">../BMP/um_1.png</file>
+        <file alias="um2">../BMP/um_2.png</file>
+        <file alias="uv0">../BMP/uv_0.png</file>
+        <file alias="uv1">../BMP/uv_1.png</file>
+        <file alias="uv2">../BMP/uv_2.png</file>
+        <file alias="uw0">../BMP/uw_0.png</file>
+        <file alias="uw1">../BMP/uw_1.png</file>
+        <file alias="uw2">../BMP/uw_2.png</file>
+        <file alias="umv0">../BMP/umv_0.png</file>
+        <file alias="umv1">../BMP/umv_1.png</file>
+        <file alias="umv2">../BMP/umv_2.png</file>
+        <file alias="ib0">../BMP/indikator_b_0.bmp</file>
+        <file alias="ib1">../BMP/indikator_b_1.bmp</file>
+        <file alias="iz0">../BMP/indikator_z_0.bmp</file>
+        <file alias="iz1">../BMP/indikator_z_1.bmp</file>
+        <file alias="ic0">../BMP/indikator_c_0.bmp</file>
+        <file alias="ic1">../BMP/indikator_c_1.bmp</file>
+        <file alias="io0">../BMP/indikator_o_0.bmp</file>
+        <file alias="io1">../BMP/indikator_o_1.bmp</file>
     </qresource>
+    <qresource prefix="/"/>
 </RCC>

@@ -1,6 +1,9 @@
 #include "simwin.h"
 #include "qregularexpression.h"
 
+
+
+//-----------------------------------------------------------
 TtlacAZD::TtlacAZD(int _X, int _Y, bool _canPush, bool _canPull, bool _aretacePush, bool _aretacePull, enum tlacColor _color, QWidget *parent) : QPushButton(parent)
 {
     //setParent(parent);
@@ -14,6 +17,12 @@ TtlacAZD::TtlacAZD(int _X, int _Y, bool _canPush, bool _canPull, bool _aretacePu
     stateM = zakladni;
     stateLit = 0;
     color = _color;
+    mtbPullIn.addr = -1;
+    mtbPullIn.pin = -1;
+    mtbPushIn.addr = -1;
+    mtbPushIn.pin = -1;
+    mtbLampOut.addr = -1;
+    mtbLampOut.pin = -1;
     setGeometry(X, Y, 15,15);
     setStyleSheet("background-color: red;");
     //setIcon(*itb0z);
@@ -143,42 +152,174 @@ void TtlacAZD::setIconState()
     }
 }
 
-TprusvAZD::TprusvAZD(int _X, int _Y, QWidget *parent)
+//-----------------------------------------------------------
+TprusvAZD::TprusvAZD(int _X, int _Y, enum prusvType _type, QWidget *parent)
 {
     X = _X;
     Y = _Y;
-    setGeometry(X, Y, 32, 12);
+    type = _type;
+    lampBila = false;
+    lampCervena = false;
+    mtbBila.addr = -1;
+    mtbBila.pin = -1;
+    mtbCervena.addr = -1;
+    mtbCervena.pin = -1;
+    switch (type) {
+    case ptSikma:
+    case ptSikmaOpacna:
+        setGeometry(X, Y, 32, 32);
+        break;
+    case ptKratka:
+    case ptKratkaSikma:
+        //setGeometry(X, Y, 15, 12);
+        setGeometry(X, Y, 15, 14);
+        break;
+    default:
+        setGeometry(X, Y, 32, 12);
+        break;
+    }
+
     setParent(parent);
     setText("");
-    setPixmap(*iu0);
+    updateState();
 }
 
-void TprusvAZD::lampChanged(enum prusvState _state)
+void TprusvAZD::lampBilaChanged(bool _state)
 {
-    state = _state;
+    lampBila = _state;
+    updateState();
+}
+
+void TprusvAZD::lampCervenaChanged(bool _state)
+{
+    lampCervena = _state;
+    updateState();
+}
+
+void TprusvAZD::updateState()
+{
+    QPixmap *pi0; // zakladní
+    QPixmap *pi1; // červená
+    QPixmap *pi2; // bílá
+    if (lampCervena) {
+        state = psCervena;
+    } else {
+        if (lampBila) {
+            state = psBila;
+        } else {
+            state = psZakladni;
+        }
+    }
+
+    switch (type) {
+    case ptZakladni:
+        pi0 = iu0;
+        pi1 = iu1;
+        pi2 = iu2;
+        break;
+    case ptKratka:
+        pi0 = ium0;
+        pi1 = ium1;
+        pi2 = ium2;
+        break;
+    case ptSikma:
+        pi0 = iuv0;
+        pi1 = iuv1;
+        pi2 = iuv2;
+        break;
+    case ptSikmaOpacna:
+        pi0 = iuw0;
+        pi1 = iuw1;
+        pi2 = iuw2;
+        break;
+    case ptKratkaSikma:
+        pi0 = iumv0;
+        pi1 = iumv1;
+        pi2 = iumv2;
+        break;
+    }
 
     switch (state) {
     case psBila:
-        setPixmap(*iu0);
+        setPixmap(*pi2);
         break;
     case psCervena:
-        setPixmap(*iu0);
+        setPixmap(*pi1);
         break;
     default:
-        setPixmap(*iu0);
+        setPixmap(*pi0);
     }
 }
 
+//-----------------------------------------------------------
+TindAZD::TindAZD(int _X, int _Y, enum indColor _color, QWidget *parent)
+{
+    X = _X;
+    Y = _Y;
+    color = _color;
+    state = false;
+    mtbZarovka.addr = -1;
+    mtbZarovka.pin = -1;
+    setGeometry(X, Y, 8, 9);
+    setParent(parent);
+    setText("");
+    updateState();
+}
+
+void TindAZD::lampChanged(bool _state)
+{
+    state = _state;
+    updateState();
+}
+
+
+void TindAZD::updateState()
+{
+    switch (color) {
+    case icCervena:
+        if (state) {
+            setPixmap(*iic1);
+        } else {
+            setPixmap(*iic0);
+        }
+        break;
+    case icZelena:
+        if (state) {
+            setPixmap(*iiz1);
+        } else {
+            setPixmap(*iiz0);
+        }
+        break;
+    case icOranzova:
+        if (state) {
+            setPixmap(*iio1);
+        } else {
+            setPixmap(*iio0);
+        }
+        break;
+    default:
+        if (state) {
+            setPixmap(*iib1);
+        } else {
+            setPixmap(*iib0);
+        }
+        break;
+    }
+}
+
+//-----------------------------------------------------------
 Tsimwin::Tsimwin(QWidget *parent)
     : QMainWindow{parent}
 {
     QLabel *plabel;
     TtlacAZD *pt;
     TprusvAZD *pprusv;
+    TindAZD *pind;
 
     // create window
     ui = new QMainWindow(nullptr);
-    ui->setGeometry(100,200,600,400);
+    ui->setGeometry(0,0,600,400);
+    //ui->setStyleSheet("background-color: black;");
 
     // load buttons images
     itb0z = new QIcon(":/bmp/tb0z");
@@ -200,6 +341,27 @@ Tsimwin::Tsimwin(QWidget *parent)
     iu0 = new QPixmap(":/bmp/u0");
     iu1 = new QPixmap(":/bmp/u1");
     iu2 = new QPixmap(":/bmp/u2");
+    ium0 = new QPixmap(":/bmp/um0");
+    ium1 = new QPixmap(":/bmp/um1");
+    ium2 = new QPixmap(":/bmp/um2");
+    iuv0 = new QPixmap(":/bmp/uv0");
+    iuv1 = new QPixmap(":/bmp/uv1");
+    iuv2 = new QPixmap(":/bmp/uv2");
+    iuw0 = new QPixmap(":/bmp/uw0");
+    iuw1 = new QPixmap(":/bmp/uw1");
+    iuw2 = new QPixmap(":/bmp/uw2");
+    iumv0 = new QPixmap(":/bmp/umv0");
+    iumv1 = new QPixmap(":/bmp/umv1");
+    iumv2 = new QPixmap(":/bmp/umv2");
+
+    iib0 = new QPixmap(":/bmp/ib0");
+    iib1 = new QPixmap(":/bmp/ib1");
+    iiz0 = new QPixmap(":/bmp/iz0");
+    iiz1 = new QPixmap(":/bmp/iz1");
+    iio0 = new QPixmap(":/bmp/io0");
+    iio1 = new QPixmap(":/bmp/io1");
+    iic0 = new QPixmap(":/bmp/ic0");
+    iic1 = new QPixmap(":/bmp/ic1");
 
     // load definition file
     QStringList linelist;
@@ -223,8 +385,8 @@ Tsimwin::Tsimwin(QWidget *parent)
         while (!in.atEnd())
         {
             QString line = in.readLine();
-            if (line == "##") {
-
+            if (line.startsWith("#")) {
+                continue;
             }
             linelist = line.split(";");
             if (linelist.count() > 2) {
@@ -239,12 +401,16 @@ Tsimwin::Tsimwin(QWidget *parent)
                     cx = 0; cy = 0;
                 }
 
-
+                if (type == "okno") {
+                    ui->setGeometry(0,0,cx+10,cy+10);
+                    ui->setStyleSheet("background-color: black;"+param);
+                }
                 if (type == "l") {
                     // static label
                     plabel = new QLabel(ui);
                     plabel->setGeometry(cx,cy,20,12);
                     plabel->setText(param);
+                    plabel->setStyleSheet("background-color: lightgray;");
                     plabel->adjustSize();
                     prvLabel.append(plabel);
                 }
@@ -280,9 +446,13 @@ Tsimwin::Tsimwin(QWidget *parent)
                     pt->mtbLampOut = mtbArray[2];
                     prvTlac.append(pt);
                 }
-                if (type == "p") {
+                if ((type == "p") || (type == "pm") || (type == "pv") || (type == "pw") || (type == "pmv")) {
                     // průsvitka
-                    pprusv = new TprusvAZD(cx, cy, ui);
+                    if (type == "p") pprusv = new TprusvAZD(cx, cy, TprusvAZD::ptZakladni, ui);
+                    if (type == "pm") pprusv = new TprusvAZD(cx, cy, TprusvAZD::ptKratka, ui);
+                    if (type == "pv") pprusv = new TprusvAZD(cx, cy, TprusvAZD::ptSikma, ui);
+                    if (type == "pw") pprusv = new TprusvAZD(cx, cy, TprusvAZD::ptSikmaOpacna, ui);
+                    if (type == "pmv") pprusv = new TprusvAZD(cx, cy, TprusvAZD::ptKratkaSikma, ui);
                     //  read mtb list
                     paramlist = param.split(',');
                     for(int i = 0; i < 2; i++) {
@@ -299,6 +469,25 @@ Tsimwin::Tsimwin(QWidget *parent)
                     pprusv->mtbBila = mtbArray[0];
                     pprusv->mtbCervena = mtbArray[1];
                     prvPrusv.append(pprusv);
+                }
+                if ((type == "ic") || (type == "iz") || (type == "io") || (type == "ib")) {
+                    // indikátor
+                    if (type == "ic") {
+                        pind = new TindAZD(cx, cy, TindAZD::icCervena, ui);
+                    } else if (type == "iz") {
+                        pind = new TindAZD(cx, cy, TindAZD::icZelena, ui);
+                    } else if (type == "io") {
+                        pind = new TindAZD(cx, cy, TindAZD::icOranzova, ui);
+                    } else {
+                        pind = new TindAZD(cx, cy, TindAZD::icBila, ui);
+                    }
+                    //  read mtb list
+                    mtbdesig = param.split('/');
+                    if (mtbdesig.count() == 2) {
+                        pind->mtbZarovka.addr = mtbdesig.at(0).toInt();
+                        pind->mtbZarovka.pin  = mtbdesig.at(1).toInt();
+                    }
+                    prvIndik.append(pind);
                 }
 
 

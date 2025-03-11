@@ -1,16 +1,11 @@
-MTB daemon
+MTB daemon simulator
 ==========
 
-MTB daemon is a simple console computer application intended to be run as
-a service. It features 2 interfaces:
+MTB daemon is a simple computer application.
+It features 2 interfaces:
 
- * MTB-USB v4 connection via USB CDC
+ * graphical windows
  * json tcp server
-
-Aim of this daemon is
-
- 1. to allow multiple applications to control single MTBbus
- 2. to provide nice communication API with MTBbus.
 
 JSON server features API for setting MTBbus modules state, getting MTBbus modules
 state as well as configuring modules, changing MTBbus speed etc.
@@ -107,9 +102,10 @@ You can do it this way:
 
 ## Authors
 
-This library was created by:
+This software was created by:
 
  * Jan Horacek ([jan.horacek@kmz-brno.cz](mailto:jan.horacek@kmz-brno.cz))
+ * Michal Petrilak ([engineercz@gmail.com](mailto:engineercz@gmail.com))
 
 Do not hesitate to contact author in case of any troubles!
 

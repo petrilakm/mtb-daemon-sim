@@ -108,6 +108,7 @@ public:
 
 signals:
     void simOutputChanged(int addr, int pin, bool state);
+    //void simOutputChanged(bool state);
 
 };
 

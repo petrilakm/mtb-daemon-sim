@@ -22,5 +22,26 @@ extern QIcon *itn0v;
 extern QPixmap *iu0;
 extern QPixmap *iu1;
 extern QPixmap *iu2;
+extern QPixmap *ium0;
+extern QPixmap *ium1;
+extern QPixmap *ium2;
+extern QPixmap *iumv0;
+extern QPixmap *iumv1;
+extern QPixmap *iumv2;
+extern QPixmap *iuv0;
+extern QPixmap *iuv1;
+extern QPixmap *iuv2;
+extern QPixmap *iuw0;
+extern QPixmap *iuw1;
+extern QPixmap *iuw2;
+
+extern QPixmap *iib0;
+extern QPixmap *iib1;
+extern QPixmap *iiz0;
+extern QPixmap *iiz1;
+extern QPixmap *iio0;
+extern QPixmap *iio1;
+extern QPixmap *iic0;
+extern QPixmap *iic1;
 
 #endif

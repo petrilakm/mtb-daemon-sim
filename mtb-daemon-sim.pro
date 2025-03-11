@@ -3,6 +3,7 @@ TEMPLATE = app
 CONFIG += console
 
 CONFIG -= app_bundle
+CONFIG -= qtquickcompiler
 
 SOURCES += \
   src/bmp_tlacitka.cpp \

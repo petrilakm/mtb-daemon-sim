@@ -78,6 +78,7 @@ void MtbUnis::jsonSetOutput(QTcpSocket *socket, const QJsonObject &request) {
 
 	bool send = (this->outputsWant == this->outputsConfirmed);
 	bool changed = false;
+    int code;
 
 	for (const auto &key : outputs.keys()) {
 		size_t port = key.toInt();
@@ -87,7 +88,12 @@ void MtbUnis::jsonSetOutput(QTcpSocket *socket, const QJsonObject &request) {
 				this->mlog("Multiple clients set same output: "+QString::number(port), Mtb::LogLevel::Warning);
 			this->whoSetOutput[port] = socket;
             // show on sim panel
+            code = ports[port];
             emit simOutputChanged(address, port, !(code == 0));
+            //emit simOutputChanged(port, !(code == 0));
+            //ports[port] = code;
+            //this->outputsWant[port] = code;
+
 		}
 		this->outputsWant[port] = ports[port];
 	}
@@ -96,7 +102,7 @@ void MtbUnis::jsonSetOutput(QTcpSocket *socket, const QJsonObject &request) {
 		std::optional<size_t> id;
 		if (request.contains("id"))
 			id = request["id"].toInt();
-		this->setOutputsWaiting.push_back({socket, id});
+        //this->setOutputsWaiting.push_back({socket, id});
 		if (send)
 			this->setOutputs();
 	} else {
@@ -369,6 +375,8 @@ void MtbUnis::resetOutputsOfClient(QTcpSocket *socket) {
 		for (size_t i = 0; i < UNIS_OUT_CNT; i++) {
 			if (this->whoSetOutput[i] == socket) {
 				this->outputsWant[i] = this->config.value().outputsSafe[i];
+                int code = this->config.value().outputsSafe[i];
+                emit simOutputChanged(address, i, !(code == 0));
 				this->whoSetOutput[i] = nullptr;
 				send = true;
 			}
@@ -454,6 +462,8 @@ void MtbUnis::allOutputsReset() {
 	for (size_t i = 0; i < UNIS_OUT_CNT; i++) {
 		this->outputsWant[i] = this->config.has_value() ? this->config.value().outputsSafe[i] : 0;
 		this->outputsConfirmed[i] = this->outputsWant[i];
+        int code = this->config.value().outputsSafe[i];
+        emit simOutputChanged(address, i, !(code == 0));
 		this->whoSetOutput[i] = nullptr;
 	}
 	this->sendOutputsChanged(outputsToJson(this->outputsConfirmed), {});
@@ -620,7 +630,7 @@ QJsonObject MtbUnisConfig::json() const {
 void MtbUnisConfig::fromJson(const QJsonObject &json) {
 	const QJsonArray &jsonOutputsSafe = QJsonSafe::safeArray(json, "outputsSafe", UNIS_OUT_CNT);
 	const QJsonArray &jsonInputsDelay = QJsonSafe::safeArray(json, "inputsDelay", UNIS_IN_CNT);
-	const QJsonArray &jsonServoPosition = QJsonSafe::safeArray(json, "servoPosition", UNIS_SERVO_CNT);
+    const QJsonArray &jsonServoPosition = QJsonSafe::safeArray(json, "servoPosition", UNIS_SERVO_CNT*2);
 	const QJsonArray &jsonServoSpeed = QJsonSafe::safeArray(json, "servoSpeed", UNIS_SERVO_CNT);
 
 	for (size_t i = 0; i < UNIS_IN_CNT; i++) {

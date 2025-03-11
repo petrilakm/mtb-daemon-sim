@@ -488,7 +488,7 @@ void MtbModule::mlog(const QString& message, Mtb::LogLevel loglevel) const {
 QJsonObject MtbModule::dvRepr(uint8_t dvi, const std::vector<uint8_t> &data) const {
     if (data.size() < 1)
         return {};
-
+/*
     switch (dvi) {
         case Mtb::DVCommon::Version:
             return {{"version", QString::number((data[0] >> 4) & 0x0F) + "." + QString::number(data[0] & 0x0F)}};
@@ -521,7 +521,7 @@ QJsonObject MtbModule::dvRepr(uint8_t dvi, const std::vector<uint8_t> &data) con
                 return {{Mtb::DVCommonToStr(dvi), static_cast<qint64>(pack<uint32_t>(data))}};
             break;
     }
-
+*/
     return {};
 }
 
